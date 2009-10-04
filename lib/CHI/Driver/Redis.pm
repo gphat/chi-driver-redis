@@ -3,6 +3,7 @@ use Moose;
 
 use Redis;
 use Try::Tiny;
+use URI::Escape qw(uri_escape uri_unescape);
 
 extends 'CHI::Driver';
 
@@ -32,32 +33,42 @@ sub fetch {
 
     $self->_verify_redis_connection;
 
-    return $self->_redis->get($self->namespace."||$key");
+    my $eskey = uri_escape($key);
+    return $self->_redis->get($self->namespace."||$eskey");
 }
 
-sub fetch_multi_hashref {
+sub XXfetch_multi_hashref {
     my ($self, $keys) = @_;
+
+    return unless scalar(@{ $keys });
 
     my %kv;
     foreach my $k (@{ $keys }) {
-        $kv{$self->namespace."||$k"} = undef;
+        my $esk = uri_escape($k);
+        $kv{$self->namespace."||$esk"} = undef;
     }
 
     my @vals = $self->_redis->mget(keys %kv);
 
     my $count = 0;
+    my %resp;
     foreach my $k (@{ $keys }) {
-        $kv{$k} = $vals[$count];
+        $resp{$k} = $vals[$count];
         $count++;
     }
 
-    return \%kv;
+    return \%resp;
 }
 
 sub get_keys {
     my ($self) = @_;
 
-    return $self->_redis->smembers($self->namespace);
+    my @keys = $self->_redis->smembers($self->namespace);
+    my @unesckeys = ();
+    foreach my $k (@keys) {
+        push(@unesckeys, uri_unescape($k));
+    }
+    return @unesckeys;
 }
 
 sub get_namespaces {
@@ -69,12 +80,16 @@ sub get_namespaces {
 sub remove {
     my ($self, $key) = @_;
 
+    return unless defined($key);
+
     $self->_verify_redis_connection;
 
     my $ns = $self->namespace;
 
-    $self->_redis->srem($ns, $key);
-    $self->_redis->del("$ns||$key");
+    my $skey = uri_escape($key);
+
+    $self->_redis->srem($ns, $skey);
+    $self->_redis->del("$ns||$skey");
 }
 
 sub store {
@@ -84,11 +99,14 @@ sub store {
 
     my $ns = $self->namespace;
 
-    my $realkey = "$ns||$key";
+    my $skey = uri_escape($key);
+    my $realkey = "$ns||$skey";
 
     $self->_redis->sadd('chinamespaces', $ns);
-    $self->_redis->sadd($ns, $key);
-    $self->_redis->set($realkey, $data);
+    unless($self->_redis->sismember($ns, $skey)) {
+        $self->_redis->sadd($ns, $skey) ;
+    }
+    $self->_redis->set($realkey => $data);
 
     if(defined($expires_at)) {
         my $secs = $expires_at - time;

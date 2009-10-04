@@ -10,8 +10,16 @@ sub new_cache_options {
     return (
         $self->SUPER::new_cache_options(),
         driver_class => 'CHI::Driver::Redis',
-        server => '127.0.0.1:6379'
+        server => '127.0.0.1:6379',
     );
+}
+
+sub clear_redis : Test(setup) {
+    my ($self) = @_;
+
+    my $cache = $self->new_cache;
+
+    $cache->_redis->flushall;
 }
 
 1;

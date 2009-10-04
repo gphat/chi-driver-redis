@@ -12,6 +12,7 @@ requires 'CHI';
 requires 'Moose';
 requires 'Redis';
 requires 'Try::Tiny';
+requires 'URI';
 
 WriteAll;
 
