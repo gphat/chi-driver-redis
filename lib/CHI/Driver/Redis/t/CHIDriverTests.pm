@@ -4,6 +4,8 @@ use warnings;
 use CHI::Test;
 use base qw(CHI::t::Driver);
 
+sub testing_driver_class { 'CHI::Driver::Redis' }
+
 sub new_cache_options {
     my $self = shift;
 
