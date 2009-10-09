@@ -64,8 +64,12 @@ sub get_keys {
     my ($self) = @_;
 
     my @keys = $self->_redis->smembers($self->namespace);
+
     my @unesckeys = ();
+
     foreach my $k (@keys) {
+        # Getting an empty key here for some reason...
+        next unless defined $k;
         push(@unesckeys, uri_unescape($k));
     }
     return @unesckeys;
