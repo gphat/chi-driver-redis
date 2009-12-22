@@ -21,7 +21,7 @@ sub clear_redis : Test(setup) {
 
     my $cache = $self->new_cache;
 
-    $cache->_redis->flushall;
+    $cache->redis->flushall;
 }
 
 1;
