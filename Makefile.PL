@@ -8,6 +8,7 @@ license  'perl';
 build_requires 'Test::Class';
 build_requires 'Test::More';
 
+requires 'Check::ISA';
 requires 'CHI';
 requires 'Moose';
 requires 'Redis';

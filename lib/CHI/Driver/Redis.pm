@@ -1,16 +1,18 @@
 package CHI::Driver::Redis;
 use Moose;
 
+use Check::ISA;
 use Redis;
 use Try::Tiny;
 use URI::Escape qw(uri_escape uri_unescape);
 
 extends 'CHI::Driver';
 
+our $VERSION = '0.02';
+
 has 'redis' => (
     is => 'rw',
     isa => 'Redis',
-    lazy_build => 1
 );
 
 has '_params' => (
@@ -21,30 +23,23 @@ sub BUILD {
     my ($self, $params) = @_;
 
     $self->_params($params);
-    # $self->redis(
-    #     Redis->new(
-    #         server => $params->{server} || '127.0.0.1:6379',
-    #         debug => $params->{debug} || 0
-    #     )
-    # );
 }
 
 sub _build_redis {
     my ($self) = @_;
 
     my $params = $self->_params;
-    $self->redis(
-        Redis->new(
-            server => $params->{server} || '127.0.0.1:6379',
-            debug => $params->{debug} || 0
-        )
+
+    return Redis->new(
+        server => $params->{server} || '127.0.0.1:6379',
+        debug => $params->{debug} || 0
     );
 }
 
 sub fetch {
     my ($self, $key) = @_;
 
-    $self->_verify_redis_connection;
+    return unless $self->_verify_redis_connection;
 
     my $eskey = uri_escape($key);
     return $self->redis->get($self->namespace."||$eskey");
@@ -54,6 +49,8 @@ sub XXfetch_multi_hashref {
     my ($self, $keys) = @_;
 
     return unless scalar(@{ $keys });
+
+    return unless $self->_verify_redis_connection;
 
     my %kv;
     foreach my $k (@{ $keys }) {
@@ -76,6 +73,8 @@ sub XXfetch_multi_hashref {
 sub get_keys {
     my ($self) = @_;
 
+    return unless $self->_verify_redis_connection;
+
     my @keys = $self->redis->smembers($self->namespace);
 
     my @unesckeys = ();
@@ -91,6 +90,8 @@ sub get_keys {
 sub get_namespaces {
     my ($self) = @_;
 
+    return unless $self->_verify_redis_connection;
+
     return $self->redis->smembers('chinamespaces');
 }
 
@@ -99,7 +100,7 @@ sub remove {
 
     return unless defined($key);
 
-    $self->_verify_redis_connection;
+    return unless $self->_verify_redis_connection;
 
     my $ns = $self->namespace;
 
@@ -112,7 +113,7 @@ sub remove {
 sub store {
     my ($self, $key, $data, $expires_at, $options) = @_;
 
-    $self->_verify_redis_connection;
+    return unless $self->_verify_redis_connection;
 
     my $ns = $self->namespace;
 
@@ -134,18 +135,36 @@ sub store {
 sub _verify_redis_connection {
     my ($self) = @_;
 
+    my $success = 0;
     try {
-        $self->redis->ping;
-    } catch {
-        warn "Error pinging redis, attempting to reconnect.\n";
+        # If we are already "connected" then try and ping redis.
+        if(defined($self->redis)) {
+            if($self->redis->ping) {
+                $success = 1;
+                return;
+            }
+            # Bitch if the ping fails
+            warn "Error pinging redis, attempting to reconnect.\n";
+        }
+
         my $params = $self->_params;
-        $self->redis(
-            Redis->new(
-                server => $params->{server} || '127.0.0.1:6379',
-                debug => $params->{debug} || 0
-            )
+        my $redis = Redis->new(
+            server => $params->{server} || '127.0.0.1:6379',
+            debug => $params->{debug} || 0
         );
+        if(obj($redis, 'Redis')) {
+            # We apparently connected, success!
+            $self->redis($redis);
+            $success = 1;
+        } else {
+            die('Failed to connect to Redis');
+        }
+    } catch {
+        warn "Unable to connect to Redis: $_";
     };
+
+    # Return the success of failure of the verification
+    return $success;
 }
 
 __PACKAGE__->meta->make_immutable;
@@ -171,7 +190,10 @@ CHI::Driver::Redis - Redis driver for CHI
 
 =head1 DESCRIPTION
 
-A CHI driver that uses C<Redis> to store the data.
+A CHI driver that uses C<Redis> to store the data.  Care has been taken to
+not have this module fail in firey ways if the cache is unavailable.  It is my
+hope that if it is failing and the cache is not required for your work, you
+can ignore it's C<warn>ings.
 
 =head1 CONSTRUCTOR OPTIONS
 
@@ -186,12 +208,6 @@ Contains the underlying C<Redis> object.
 =head1 AUTHOR
 
 Cory G Watson, C<< <gphat at cpan.org> >>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<bug-chi-driver-redis at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=CHI-Driver-Redis>.  I will be notified, and then you'll
-automatically be notified of progress on your bug as I make changes.
 
 =head1 COPYRIGHT & LICENSE
 

@@ -1,5 +1,13 @@
 Revision history for CHI-Driver-Redis
 
+0.02    December 22nd, 2009
+  * POD updates
+  * Rename _redis attribute to redis
+  * Lazily set redis attribute so that it is not populated until the first
+    use.  This – plus some new error handling – prevent crazy explosions when
+    Redis isn't available at instantiation time.
+  * Add warning for when ->ping fails
+
 0.01    Date/time
         First version, released on an unsuspecting world.
 
