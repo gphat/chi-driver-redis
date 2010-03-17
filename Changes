@@ -1,5 +1,9 @@
 Revision history for CHI-Driver-Redis
 
+0.03    March 17, 2010
+  * PODed implementation details
+  * Conditional tests
+
 0.02    December 22nd, 2009
   * POD updates
   * Rename _redis attribute to redis
