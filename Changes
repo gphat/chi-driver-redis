@@ -1,5 +1,11 @@
 Revision history for CHI-Driver-Redis
 
+0.04
+  * Use hashes to store info rather than crazy sets and keys.
+  * Indiscriminately turn off the UTF-8 flag on data coming out of
+    Redis.pm so CHI can handle it.
+  * Bump dependency versions.
+
 0.03    March 17, 2010
   * PODed implementation details
   * Conditional tests
