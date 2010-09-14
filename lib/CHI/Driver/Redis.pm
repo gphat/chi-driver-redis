@@ -43,7 +43,7 @@ sub fetch {
     return unless $self->_verify_redis_connection;
 
     my $eskey = uri_escape($key);
-    my $val = $self->redis->get($self->namespace."||$eskey");
+    my $val = $self->redis->hget($self->namespace, $eskey);
     # Blindly turn off the damn UTF-8 flag because Redis.pm blindly
     # turns it on. This prevents CHI from going crazy.
     Encode::_utf8_off($val);
@@ -51,37 +51,12 @@ sub fetch {
     return $val;
 }
 
-sub XXfetch_multi_hashref {
-    my ($self, $keys) = @_;
-
-    return unless scalar(@{ $keys });
-
-    return unless $self->_verify_redis_connection;
-
-    my %kv;
-    foreach my $k (@{ $keys }) {
-        my $esk = uri_escape($k);
-        $kv{$self->namespace."||$esk"} = undef;
-    }
-
-    my @vals = $self->redis->mget(keys %kv);
-
-    my $count = 0;
-    my %resp;
-    foreach my $k (@{ $keys }) {
-        $resp{$k} = $vals[$count];
-        $count++;
-    }
-
-    return \%resp;
-}
-
 sub get_keys {
     my ($self) = @_;
 
     return unless $self->_verify_redis_connection;
 
-    my @keys = $self->redis->smembers($self->namespace);
+    my @keys = $self->redis->hkeys($self->namespace);
 
     my @unesckeys = ();
 
@@ -112,8 +87,8 @@ sub remove {
 
     my $skey = uri_escape($key);
 
-    $self->redis->srem($ns, $skey);
-    $self->redis->del("$ns||$skey");
+    # $self->redis->srem($ns, $skey);
+    $self->redis->hdel($ns, $skey);
 }
 
 sub store {
@@ -124,18 +99,18 @@ sub store {
     my $ns = $self->namespace;
 
     my $skey = uri_escape($key);
-    my $realkey = "$ns||$skey";
+    # my $realkey = "$ns||$skey";
 
     $self->redis->sadd('chinamespaces', $ns);
-    unless($self->redis->sismember($ns, $skey)) {
-        $self->redis->sadd($ns, $skey) ;
-    }
-    $self->redis->set($realkey => $data);
+    # unless($self->redis->sismember($ns, $skey)) {
+    #     $self->redis->sadd($ns, $skey) ;
+    # }
+    $self->redis->hset($ns, $skey => $data);
 
-    if(defined($expires_at)) {
-        my $secs = $expires_at - time;
-        $self->redis->expire($realkey, $secs);
-    }
+    # if(defined($expires_at)) {
+    #     my $secs = $expires_at - time;
+    #     $self->redis->expire($realkey, $secs);
+    # }
 }
 
 sub _verify_redis_connection {
@@ -152,6 +127,7 @@ sub _verify_redis_connection {
             die "Ping failed.";
         }
     } catch {
+        print STDERR "$_\n";
         warn "Error pinging redis, attempting to reconnect.\n";
     };
 
