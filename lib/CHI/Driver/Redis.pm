@@ -2,13 +2,14 @@ package CHI::Driver::Redis;
 use Moose;
 
 use Check::ISA;
+use Encode;
 use Redis;
 use Try::Tiny;
 use URI::Escape qw(uri_escape uri_unescape);
 
 extends 'CHI::Driver';
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 has 'redis' => (
     is => 'rw',
@@ -42,7 +43,12 @@ sub fetch {
     return unless $self->_verify_redis_connection;
 
     my $eskey = uri_escape($key);
-    return $self->redis->get($self->namespace."||$eskey");
+    my $val = $self->redis->get($self->namespace."||$eskey");
+    # Blindly turn off the damn UTF-8 flag because Redis.pm blindly
+    # turns it on. This prevents CHI from going crazy.
+    Encode::_utf8_off($val);
+
+    return $val;
 }
 
 sub XXfetch_multi_hashref {
@@ -200,6 +206,8 @@ can ignore it's C<warn>ings.
 
 =head1 TECHNICAL DETAILS
 
+=head2 Namespaces.
+
 Redis does not have namespaces.  Therefore, we have to do some hoop-jumping.
 
 Namespaces are tracked in a set named C<chinamespaces>.  This is a list of all
@@ -210,6 +218,12 @@ The actual value is stored as "$namespace||key".
 
 So, to illustrate.  If you store a value C<foo: bar> in namespace C<baz>,
 Redis will contain something like the following:
+
+=head2 Encoding
+
+This CHI driver uses Redis.pm.  Redis.pm blindly sets the UTF-8 flag to true
+on anything it retrieves from Redis.  This driver blindly unsets the same
+flag so that CHI can determine for itself how to encode the retrieved value.
 
 =over 4
 

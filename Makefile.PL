@@ -9,9 +9,9 @@ build_requires 'Test::Class';
 build_requires 'Test::More';
 
 requires 'Check::ISA';
-requires 'CHI';
+requires 'CHI' => '0.36';
 requires 'Moose';
-requires 'Redis';
+requires 'Redis' => '1.2001';
 requires 'Try::Tiny';
 requires 'URI';
 
