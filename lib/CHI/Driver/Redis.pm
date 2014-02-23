@@ -131,6 +131,8 @@ sub _verify_redis_connection {
         warn "Error pinging redis, attempting to reconnect.\n";
     };
 
+    return $success if $success;
+
     try {
         my $params = $self->_params;
         my $redis = Redis->new(
