@@ -33,7 +33,8 @@ sub _build_redis {
 
     return Redis->new(
         server => $params->{server} || '127.0.0.1:6379',
-        debug => $params->{debug} || 0
+        debug => $params->{debug} || 0,
+        ($params->{password} ? ( password => $params->{password} ) : ()),
     );
 }
 
@@ -132,11 +133,7 @@ sub _verify_redis_connection {
     };
 
     try {
-        my $params = $self->_params;
-        my $redis = Redis->new(
-            server => $params->{server} || '127.0.0.1:6379',
-            debug => $params->{debug} || 0
-        );
+        my $redis = $self->_build_redis();
         if(obj($redis, 'Redis')) {
             # We apparently connected, success!
             $self->redis($redis);
