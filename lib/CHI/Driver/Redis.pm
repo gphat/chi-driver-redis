@@ -33,7 +33,8 @@ sub _build_redis {
 
     return Redis->new(
         server => $params->{server} || '127.0.0.1:6379',
-        debug => $params->{debug} || 0
+        debug => $params->{debug} || 0,
+        (defined $params->{password} ? ( password => $params->{password} ) : ()),
     );
 }
 
@@ -132,11 +133,7 @@ sub _verify_redis_connection {
     };
 
     try {
-        my $params = $self->_params;
-        my $redis = Redis->new(
-            server => $params->{server} || '127.0.0.1:6379',
-            debug => $params->{debug} || 0
-        );
+        my $redis = $self->_build_redis();
         if(obj($redis, 'Redis')) {
             # We apparently connected, success!
             $self->redis($redis);
@@ -205,7 +202,7 @@ flag so that CHI can determine for itself how to encode the retrieved value.
 
 =head1 CONSTRUCTOR OPTIONS
 
-C<server> and C<debug> are passed to C<Redis>.
+C<server>, C<debug>, and C<password> are passed to C<Redis>.
 
 =head1 ATTRIBUTES
 
