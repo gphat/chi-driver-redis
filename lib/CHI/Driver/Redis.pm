@@ -214,6 +214,10 @@ Contains the underlying C<Redis> object.
 
 Cory G Watson, C<< <gphat at cpan.org> >>
 
+=head1 CONTRIBUTORS
+
+Ian Burrell, C<< <iburrell@cpan.org> >>
+
 =head1 COPYRIGHT & LICENSE
 
 Copyright 2009 Cold Hard Code, LLC.
