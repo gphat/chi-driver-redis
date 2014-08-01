@@ -1,5 +1,9 @@
 Revision history for CHI-Driver-Redis
 
+0.04    March 17, 2010
+  * Separate ping check from reconnection exceptions so that being disconnected
+    doesn't become a permanent problem.  We now reconnect when Redis comes back.
+
 0.03    March 17, 2010
   * PODed implementation details
   * Conditional tests
