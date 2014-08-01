@@ -9,7 +9,7 @@ use URI::Escape qw(uri_escape uri_unescape);
 
 extends 'CHI::Driver';
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 has 'redis' => (
     is => 'rw',
