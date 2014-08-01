@@ -44,7 +44,8 @@ sub fetch {
     return unless $self->_verify_redis_connection;
 
     my $eskey = uri_escape($key);
-    my $val = $self->redis->get($self->namespace."||$eskey");
+    my $realkey = $self->namespace."||$eskey";
+    my $val = $self->redis->get($realkey);
     # Blindly turn off the damn UTF-8 flag because Redis.pm blindly
     # turns it on. This prevents CHI from going crazy.
     Encode::_utf8_off($val);
@@ -118,7 +119,7 @@ sub remove {
 }
 
 sub store {
-    my ($self, $key, $data, $expires_at, $options) = @_;
+    my ($self, $key, $data, $expires_in) = @_;
 
     return unless $self->_verify_redis_connection;
 
@@ -133,9 +134,8 @@ sub store {
     }
     $self->redis->set($realkey => $data);
 
-    if(defined($expires_at)) {
-        my $secs = $expires_at - time;
-        $self->redis->expire($realkey, $secs);
+    if (defined($expires_in)) {
+        $self->redis->expire($realkey, $expires_in);
     }
 }
 

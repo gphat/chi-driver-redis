@@ -6,6 +6,8 @@ use base qw(CHI::t::Driver);
 
 sub testing_driver_class { 'CHI::Driver::Redis' }
 
+sub supports_expires_on_backend { 1 }
+
 sub new_cache_options {
     my $self = shift;
 
