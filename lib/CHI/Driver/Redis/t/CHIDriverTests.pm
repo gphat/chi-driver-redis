@@ -16,6 +16,7 @@ sub new_cache_options {
         driver_class => 'CHI::Driver::Redis',
         server => $ENV{CHI_REDIS_SERVER} || '127.0.0.1:6379',
         ($ENV{CHI_REDIS_PASSWORD} ? ( password => $ENV{CHI_REDIS_PASSWORD} ) : ()),
+        prefix => 'test' . $$ . ':',
     );
 }
 
