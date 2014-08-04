@@ -1,5 +1,12 @@
 Revision history for CHI-Driver-Redis
 
+0.06 August 4, 2014
+  * Set Redis encoding option to undef to disable encoding
+  * Fix store to use expires_in (RT#78120)
+  * Revert "Use hashes."
+  * Change maintainer
+  * Add support for password option to Redis (RT#97382)
+
 0.05
   * Use hashes to store info rather than crazy sets and keys.
   * Indiscriminately turn off the UTF-8 flag on data coming out of
