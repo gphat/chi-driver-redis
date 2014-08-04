@@ -8,3 +8,6 @@ pm_to_blib*
 .lwpcookies
 CHI-Driver-Redis-*
 cover_db
+MYMETA.*
+META.*
+inc/

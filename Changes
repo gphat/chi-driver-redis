@@ -1,10 +1,21 @@
 Revision history for CHI-Driver-Redis
 
-0.04
+0.06 August 4, 2014
+  * Set Redis encoding option to undef to disable encoding
+  * Fix store to use expires_in (RT#78120)
+  * Revert "Use hashes."
+  * Change maintainer
+  * Add support for password option to Redis (RT#97382)
+
+0.05
   * Use hashes to store info rather than crazy sets and keys.
   * Indiscriminately turn off the UTF-8 flag on data coming out of
     Redis.pm so CHI can handle it.
   * Bump dependency versions.
+
+0.04    March 17, 2010
+  * Separate ping check from reconnection exceptions so that being disconnected
+    doesn't become a permanent problem.  We now reconnect when Redis comes back.
 
 0.03    March 17, 2010
   * PODed implementation details

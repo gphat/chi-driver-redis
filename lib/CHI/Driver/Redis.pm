@@ -2,14 +2,13 @@ package CHI::Driver::Redis;
 use Moose;
 
 use Check::ISA;
-use Encode;
 use Redis;
 use Try::Tiny;
 use URI::Escape qw(uri_escape uri_unescape);
 
 extends 'CHI::Driver';
 
-our $VERSION = '0.04';
+our $VERSION = '0.06';
 
 has 'redis' => (
     is => 'rw',
@@ -20,9 +19,13 @@ has '_params' => (
     is => 'rw'
 );
 
+has 'prefix'=> (
+    is => 'ro',
+    default => '',
+);
+
 sub BUILD {
     my ($self, $params) = @_;
-
     $self->_params($params);
 }
 
@@ -33,7 +36,9 @@ sub _build_redis {
 
     return Redis->new(
         server => $params->{server} || '127.0.0.1:6379',
-        debug => $params->{debug} || 0
+        debug => $params->{debug} || 0,
+        encoding => undef,
+        (defined $params->{password} ? ( password => $params->{password} ) : ()),
     );
 }
 
@@ -43,12 +48,37 @@ sub fetch {
     return unless $self->_verify_redis_connection;
 
     my $eskey = uri_escape($key);
-    my $val = $self->redis->hget($self->namespace, $eskey);
-    # Blindly turn off the damn UTF-8 flag because Redis.pm blindly
-    # turns it on. This prevents CHI from going crazy.
-    Encode::_utf8_off($val);
-
+    my $realkey = $self->prefix . $self->namespace . '||' . $eskey;
+    my $val = $self->redis->get($realkey);
     return $val;
+}
+
+sub fetch_multi_hashref {
+    my ($self, $keys) = @_;
+
+    return unless scalar(@{ $keys });
+
+    return unless $self->_verify_redis_connection;
+
+    my $ns = $self->prefix . $self->namespace;
+
+    my @keys;
+    foreach my $k (@$keys) {
+        my $esk = uri_escape($k);
+        my $key = $ns . '||' . $esk;
+        push @keys, $key;
+    }
+
+    my @vals = $self->redis->mget(@keys);
+
+    my $count = 0;
+    my %resp;
+    foreach my $k (@$keys) {
+        $resp{$k} = $vals[$count];
+        $count++;
+    }
+
+    return \%resp;
 }
 
 sub get_keys {
@@ -56,7 +86,7 @@ sub get_keys {
 
     return unless $self->_verify_redis_connection;
 
-    my @keys = $self->redis->hkeys($self->namespace);
+    my @keys = $self->redis->smembers($self->prefix . $self->namespace);
 
     my @unesckeys = ();
 
@@ -73,7 +103,7 @@ sub get_namespaces {
 
     return unless $self->_verify_redis_connection;
 
-    return $self->redis->smembers('chinamespaces');
+    return $self->redis->smembers($self->prefix . 'chinamespaces');
 }
 
 sub remove {
@@ -83,34 +113,45 @@ sub remove {
 
     return unless $self->_verify_redis_connection;
 
-    my $ns = $self->namespace;
+    my $ns = $self->prefix . $self->namespace;
 
     my $skey = uri_escape($key);
 
-    # $self->redis->srem($ns, $skey);
-    $self->redis->hdel($ns, $skey);
+    $self->redis->srem($ns, $skey);
+    $self->redis->del($ns . '||' . $skey);
 }
 
 sub store {
-    my ($self, $key, $data, $expires_at, $options) = @_;
+    my ($self, $key, $data, $expires_in) = @_;
 
     return unless $self->_verify_redis_connection;
 
-    my $ns = $self->namespace;
+    my $ns = $self->prefix . $self->namespace;
 
     my $skey = uri_escape($key);
-    # my $realkey = "$ns||$skey";
+    my $realkey = $ns . '||' . $skey;
 
-    $self->redis->sadd('chinamespaces', $ns);
-    # unless($self->redis->sismember($ns, $skey)) {
-    #     $self->redis->sadd($ns, $skey) ;
-    # }
-    $self->redis->hset($ns, $skey => $data);
+    $self->redis->sadd($self->prefix . 'chinamespaces', $self->namespace);
+    $self->redis->sadd($ns, $skey);
+    $self->redis->set($realkey, $data);
 
-    # if(defined($expires_at)) {
-    #     my $secs = $expires_at - time;
-    #     $self->redis->expire($realkey, $secs);
-    # }
+    if (defined($expires_in)) {
+        $self->redis->expire($realkey, $expires_in);
+    }
+}
+
+sub clear {
+    my ($self) = @_;
+
+    return unless $self->_verify_redis_connection;
+
+    my $ns = $self->prefix . $self->namespace;
+    my @keys = $self->redis->smembers($ns);
+
+    foreach my $k (@keys) {
+        $self->redis->srem($ns, $k);
+        $self->redis->del($ns . '||' . $k);
+    }
 }
 
 sub _verify_redis_connection {
@@ -127,16 +168,11 @@ sub _verify_redis_connection {
             die "Ping failed.";
         }
     } catch {
-        print STDERR "$_\n";
         warn "Error pinging redis, attempting to reconnect.\n";
     };
 
     try {
-        my $params = $self->_params;
-        my $redis = Redis->new(
-            server => $params->{server} || '127.0.0.1:6379',
-            debug => $params->{debug} || 0
-        );
+        my $redis = $self->_build_redis();
         if(obj($redis, 'Redis')) {
             # We apparently connected, success!
             $self->redis($redis);
@@ -176,9 +212,9 @@ CHI::Driver::Redis - Redis driver for CHI
 =head1 DESCRIPTION
 
 A CHI driver that uses C<Redis> to store the data.  Care has been taken to
-not have this module fail in firey ways if the cache is unavailable.  It is my
+not have this module fail in fiery ways if the cache is unavailable.  It is my
 hope that if it is failing and the cache is not required for your work, you
-can ignore it's C<warn>ings.
+can ignore it's warnings.
 
 =head1 TECHNICAL DETAILS
 
@@ -192,20 +228,17 @@ the namespaces the driver has seen.
 Keys in a namespace are stored in a set that shares the name of the namespace.
 The actual value is stored as "$namespace||key".
 
-So, to illustrate.  If you store a value C<foo: bar> in namespace C<baz>,
-Redis will contain something like the following:
-
 =head2 Encoding
 
-This CHI driver uses Redis.pm.  Redis.pm blindly sets the UTF-8 flag to true
-on anything it retrieves from Redis.  This driver blindly unsets the same
-flag so that CHI can determine for itself how to encode the retrieved value.
+This CHI driver uses Redis.pm.  Redis.pm by default automatically
+encodes values to UTF-8.  This driver sets the Redis encoding option
+to undef to disable automatic encoding.
 
-=over 4
+=back
 
 =head1 CONSTRUCTOR OPTIONS
 
-C<server> and C<debug> are passed to C<Redis>.
+C<server>, C<debug>, and C<password> are passed to C<Redis>.
 
 =head1 ATTRIBUTES
 
@@ -216,6 +249,10 @@ Contains the underlying C<Redis> object.
 =head1 AUTHOR
 
 Cory G Watson, C<< <gphat at cpan.org> >>
+
+=head1 CONTRIBUTORS
+
+Ian Burrell, C<< <iburrell@cpan.org> >>
 
 =head1 COPYRIGHT & LICENSE
 
