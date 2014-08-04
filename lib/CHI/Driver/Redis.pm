@@ -53,24 +53,27 @@ sub fetch {
     return $val;
 }
 
-sub XXfetch_multi_hashref {
+sub fetch_multi_hashref {
     my ($self, $keys) = @_;
 
     return unless scalar(@{ $keys });
 
     return unless $self->_verify_redis_connection;
 
-    my %kv;
-    foreach my $k (@{ $keys }) {
+    my $ns = $self->prefix . $self->namespace;
+
+    my @keys;
+    foreach my $k (@$keys) {
         my $esk = uri_escape($k);
-        $kv{$self->namespace."||$esk"} = undef;
+        my $key = $ns . '||' . $esk;
+        push @keys, $key;
     }
 
-    my @vals = $self->redis->mget(keys %kv);
+    my @vals = $self->redis->mget(@keys);
 
     my $count = 0;
     my %resp;
-    foreach my $k (@{ $keys }) {
+    foreach my $k (@$keys) {
         $resp{$k} = $vals[$count];
         $count++;
     }
