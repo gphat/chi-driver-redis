@@ -2,7 +2,6 @@ package CHI::Driver::Redis;
 use Moose;
 
 use Check::ISA;
-use Encode;
 use Redis;
 use Try::Tiny;
 use URI::Escape qw(uri_escape uri_unescape);
@@ -34,6 +33,7 @@ sub _build_redis {
     return Redis->new(
         server => $params->{server} || '127.0.0.1:6379',
         debug => $params->{debug} || 0,
+        encoding => undef,
         (defined $params->{password} ? ( password => $params->{password} ) : ()),
     );
 }
@@ -46,10 +46,6 @@ sub fetch {
     my $eskey = uri_escape($key);
     my $realkey = $self->namespace."||$eskey";
     my $val = $self->redis->get($realkey);
-    # Blindly turn off the damn UTF-8 flag because Redis.pm blindly
-    # turns it on. This prevents CHI from going crazy.
-    Encode::_utf8_off($val);
-
     return $val;
 }
 
@@ -218,9 +214,9 @@ Redis will contain something like the following:
 
 =head2 Encoding
 
-This CHI driver uses Redis.pm.  Redis.pm blindly sets the UTF-8 flag to true
-on anything it retrieves from Redis.  This driver blindly unsets the same
-flag so that CHI can determine for itself how to encode the retrieved value.
+This CHI driver uses Redis.pm.  Redis.pm by default automatically
+encodes values to UTF-8.  This driver sets the Redis encoding option
+to undef to disable automatic encoding.
 
 =over 4
 
