@@ -137,6 +137,20 @@ sub store {
     }
 }
 
+sub clear {
+    my ($self) = @_;
+
+    return unless $self->_verify_redis_connection;
+
+    my $ns = $self->prefix . $self->namespace;
+    my @keys = $self->redis->smembers($ns);
+
+    foreach my $k (@keys) {
+        $self->redis->srem($ns, $k);
+        $self->redis->del($ns . '||' . $k);
+    }
+}
+
 sub _verify_redis_connection {
     my ($self) = @_;
 
