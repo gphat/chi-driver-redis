@@ -193,9 +193,9 @@ CHI::Driver::Redis - Redis driver for CHI
 =head1 DESCRIPTION
 
 A CHI driver that uses C<Redis> to store the data.  Care has been taken to
-not have this module fail in firey ways if the cache is unavailable.  It is my
+not have this module fail in fiery ways if the cache is unavailable.  It is my
 hope that if it is failing and the cache is not required for your work, you
-can ignore it's C<warn>ings.
+can ignore it's warnings.
 
 =head1 TECHNICAL DETAILS
 
@@ -209,16 +209,13 @@ the namespaces the driver has seen.
 Keys in a namespace are stored in a set that shares the name of the namespace.
 The actual value is stored as "$namespace||key".
 
-So, to illustrate.  If you store a value C<foo: bar> in namespace C<baz>,
-Redis will contain something like the following:
-
 =head2 Encoding
 
 This CHI driver uses Redis.pm.  Redis.pm by default automatically
 encodes values to UTF-8.  This driver sets the Redis encoding option
 to undef to disable automatic encoding.
 
-=over 4
+=back
 
 =head1 CONSTRUCTOR OPTIONS
 
